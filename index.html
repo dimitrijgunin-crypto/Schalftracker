@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Zyklus</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zyklus">
+<meta name="theme-color" content="#0A0A0C">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<style>
+:root{
+  --bg:#0A0A0C;
+  --ink:#F1EEE9;
+  --dim:rgba(241,238,233,.56);
+  --faint:rgba(241,238,233,.34);
+  --ghost:rgba(241,238,233,.18);
+  --hair:rgba(241,238,233,.10);
+  --hair2:rgba(241,238,233,.17);
+  --surf:rgba(241,238,233,.045);
+  --gold:#E3C08A;
+  --nav:66px;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Times New Roman",Georgia,serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100svh;color:var(--ink);
+  background:radial-gradient(125% 65% at 50% 0%, #17171F 0%, #0A0A0C 58%) no-repeat fixed var(--bg);
+  font-family:var(--sans);font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+  display:flex;flex-direction:column;overscroll-behavior-y:none;
+}
+.wrap{width:100%;max-width:430px;margin:0 auto;flex:1;display:flex;flex-direction:column}
+main{flex:1;padding:4px 20px 30px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:1.5px solid var(--gold);outline-offset:3px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- Kopf ---------- */
+header{
+  display:flex;align-items:baseline;justify-content:space-between;
+  padding:calc(16px + env(safe-area-inset-top)) 20px 14px;
+}
+header h1{
+  margin:0;font-family:var(--serif);font-style:italic;font-weight:400;
+  font-size:20px;letter-spacing:.01em;
+}
+header .stat{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+
+/* ---------- Bausteine ---------- */
+.eyebrow{
+  font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--faint);margin:26px 0 12px;
+}
+.eyebrow:first-child{margin-top:6px}
+.rule{height:1px;background:var(--hair);margin:22px 0}
+.hint{color:var(--dim);font-size:12.5px;line-height:1.6}
+.big{font-weight:200;letter-spacing:-.02em;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+
+/* ---------- Modus-Umschalter ---------- */
+.seg{display:flex;gap:4px;background:var(--surf);border-radius:100px;padding:4px;margin:2px 0 22px}
+.seg button{
+  flex:1;border-radius:100px;padding:11px 6px;font-size:12.5px;color:var(--dim);
+  letter-spacing:.01em;transition:background .18s ease,color .18s ease;
+}
+.seg button.on{background:rgba(241,238,233,.10);color:var(--ink)}
+
+/* ---------- Zeitfeld ---------- */
+.field{
+  display:flex;align-items:center;gap:14px;
+  border:1px solid var(--hair2);border-radius:14px;padding:12px 16px;
+}
+.field .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:1px}
+.field input[type=time]{
+  background:none;border:0;color:var(--ink);font-family:var(--mono);
+  font-size:27px;font-weight:300;letter-spacing:.01em;padding:0;width:100%;
+  font-variant-numeric:tabular-nums;
+}
+.field input[type=time]::-webkit-calendar-picker-indicator{display:none}
+.field .now{
+  flex:none;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+  border:1px solid var(--hair2);border-radius:100px;padding:9px 13px;min-height:38px;
+}
+.field .now:active{background:var(--surf)}
+
+/* ---------- Zifferblatt ---------- */
+.dial{position:relative;width:100%;max-width:330px;margin:14px auto 2px;aspect-ratio:1/1}
+.dial svg{display:block;width:100%;height:100%}
+.ring{fill:none;stroke:var(--hair);stroke-width:1}
+.wave{fill:none;stroke:rgba(241,238,233,.72);stroke-width:1.5;stroke-linecap:round}
+.wave-draw{stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 1.5s cubic-bezier(.22,.9,.3,1) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.doze{fill:none;stroke:var(--ghost);stroke-width:1.5;stroke-dasharray:1 4;stroke-linecap:round}
+.tick{stroke:var(--ghost);stroke-width:1}
+.tick.hot{stroke:var(--gold)}
+.knob{fill:var(--gold)}
+.halo{fill:none;stroke:var(--gold);stroke-width:1;opacity:.35}
+.center{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;pointer-events:none;text-align:center;
+}
+.center .cap{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+.center .t{font-size:clamp(46px,15.5vw,58px);line-height:1}
+.center .sub{margin-top:10px;font-size:12px;color:var(--dim);letter-spacing:.02em}
+.ends{position:absolute;left:0;right:0;bottom:2%;display:flex;justify-content:space-between;padding:0 8px}
+.ends span{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.06em}
+
+/* ---------- Zyklus-Auswahl ---------- */
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px}
+.opt{
+  position:relative;border:1px solid var(--hair2);border-radius:14px;padding:13px 14px;text-align:left;
+  transition:border-color .18s ease,background .18s ease;
+}
+.opt:active{background:var(--surf)}
+.opt.on{border-color:var(--gold);background:rgba(227,192,138,.07)}
+.opt .t{display:block;font-family:var(--mono);font-size:21px;font-weight:300;letter-spacing:.01em}
+.opt .d{display:block;font-size:11px;color:var(--dim);margin-top:3px}
+.opt .best{position:absolute;top:11px;right:11px;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+.legend{display:flex;align-items:center;gap:7px;color:var(--faint);font-size:11px;margin-top:11px}
+.legend i{width:5px;height:5px;border-radius:50%;background:var(--gold);display:block}
+
+.stats{display:flex;margin:24px 0 4px;border-top:1px solid var(--hair);padding-top:16px}
+.stats div{flex:1}
+.stats .k{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.stats .v{font-family:var(--mono);font-size:16px;font-weight:300;margin-top:4px}
+
+.wide{
+  display:block;width:100%;border:1px solid var(--hair2);border-radius:14px;
+  padding:15px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+  margin-top:18px;min-height:48px;
+}
+.wide:active{background:var(--surf)}
+.solid{background:var(--ink);color:#0A0A0C;border-color:var(--ink);font-weight:600}
+.solid:active{background:#fff}
+
+.banner{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  border:1px solid rgba(227,192,138,.4);background:rgba(227,192,138,.06);
+  border-radius:14px;padding:13px 15px;margin-bottom:18px;font-size:13.5px;
+}
+.banner i{width:6px;height:6px;border-radius:50%;background:var(--gold);flex:none}
+.banner span{margin-left:auto;color:var(--gold);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+
+/* ---------- Formular ---------- */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.q{margin:26px 0 10px;font-size:14.5px;letter-spacing:.01em}
+.q em{display:block;font-style:normal;color:var(--faint);font-size:12px;margin-top:3px}
+.scale{display:flex;gap:6px}
+.scale button{
+  flex:1;min-height:48px;border:1px solid var(--hair2);border-radius:12px;
+  font-family:var(--mono);font-size:14px;color:var(--dim);font-weight:300;
+  transition:background .16s ease,color .16s ease,border-color .16s ease;
+}
+.scale button.on{background:var(--ink);border-color:var(--ink);color:#0A0A0C}
+.ends2{display:flex;justify-content:space-between;color:var(--faint);font-size:11px;margin-top:8px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--hair2);border-radius:100px;padding:10px 14px;font-size:12.5px;color:var(--dim);min-height:40px}
+.chip.on{border-color:var(--gold);color:var(--gold);background:rgba(227,192,138,.07)}
+textarea{
+  width:100%;background:var(--surf);border:1px solid var(--hair);border-radius:12px;color:var(--ink);
+  font-family:var(--sans);font-size:15px;padding:12px;resize:vertical;min-height:70px;
+}
+textarea::placeholder{color:var(--ghost)}
+input[type=date]{
+  background:var(--surf);border:1px solid var(--hair);border-radius:10px;color:var(--ink);
+  font-family:var(--mono);font-size:14px;padding:10px 12px;
+}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.4}
+
+/* ---------- Auswertung ---------- */
+.headline{display:flex;align-items:flex-end;gap:9px;margin:2px 0}
+.headline .v{font-size:74px;line-height:.82}
+.headline .u{font-size:13px;color:var(--dim);padding-bottom:9px;letter-spacing:.02em}
+.meter{height:2px;background:var(--hair);border-radius:2px;overflow:hidden;margin:20px 0 10px}
+.meter i{display:block;height:100%;background:var(--gold);transition:width .5s ease}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:13px 0;border-top:1px solid var(--hair);font-size:14px}
+.kv span{color:var(--dim)}
+.kv b{font-family:var(--mono);font-weight:300;font-size:15px}
+.bars{display:flex;align-items:flex-end;gap:4px;height:88px;margin:4px 0 12px}
+.bars i{flex:1;border-radius:2px;background:var(--ghost);min-height:3px}
+.bars i.al{background:var(--ink)}
+.bars i.mis{background:rgba(241,238,233,.28)}
+.night{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--hair);font-size:13.5px}
+.night .dt{font-family:var(--mono);color:var(--faint);font-size:12px;width:52px;flex:none}
+.night .sc{font-family:var(--mono);font-size:15px;font-weight:300;width:30px;flex:none}
+.night .meta{color:var(--faint);font-size:11.5px;font-family:var(--mono)}
+.night .del{margin-left:auto;color:var(--faint);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:8px 0 8px 10px}
+.night .del.arm{color:var(--gold)}
+details{border-top:1px solid var(--hair);padding-top:16px;margin-top:8px}
+summary{cursor:pointer;font-size:13px;color:var(--dim);list-style:none;display:flex;align-items:center;gap:8px;min-height:34px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"";width:5px;height:5px;border-right:1px solid var(--faint);border-bottom:1px solid var(--faint);transform:rotate(45deg);margin-left:auto}
+details[open] summary::after{transform:rotate(-135deg)}
+details p{font-size:13px;color:var(--dim);line-height:1.65}
+details b{color:var(--ink);font-weight:500}
+details code{font-family:var(--mono);color:var(--ink);font-size:12.5px}
+.empty{color:var(--faint);font-size:13.5px;line-height:1.7}
+
+/* ---------- Navigation ---------- */
+nav{
+  position:sticky;bottom:0;z-index:5;display:flex;
+  background:rgba(10,10,12,.86);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--hair);padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1;height:var(--nav);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);
+}
+nav button.on{color:var(--ink)}
+nav button .pip{width:4px;height:4px;border-radius:50%;background:transparent}
+nav button.on .pip{background:var(--gold)}
+nav button .dot{position:absolute;transform:translate(26px,-13px);width:5px;height:5px;border-radius:50%;background:var(--gold)}
+.toast{
+  position:fixed;left:50%;bottom:calc(var(--nav) + 22px + env(safe-area-inset-bottom));
+  transform:translateX(-50%);z-index:9;max-width:88vw;text-align:center;
+  background:var(--ink);color:#0A0A0C;padding:12px 20px;border-radius:100px;font-size:13px;font-weight:500;
+  box-shadow:0 10px 40px rgba(0,0,0,.6);animation:rise .3s ease;
+}
+@keyframes rise{from{opacity:0;transform:translate(-50%,10px)}}
+@media (prefers-reduced-motion:reduce){
+  .wave-draw{animation:none;stroke-dashoffset:0}
+  .toast{animation:none}
+  *{transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Zyklus</h1>
+    <div class="stat" id="hstat"></div>
+  </header>
+  <main id="view"></main>
+  <nav id="tabs"></nav>
+</div>
+<script>
+/* =========================================================
+   Zyklus — persönlicher Schlafzyklus-Tracker
+   ========================================================= */
+
+const KEY = "zyklus:v1";
+const DEF = { cycle: 90, latency: 15 };
+
+const RATINGS = [
+  { key:"quality", label:"Schlafqualität",  sub:"Wie war die Nacht insgesamt?", low:"unruhig", high:"tief" },
+  { key:"alert",   label:"Wachheit direkt nach dem Aufstehen", sub:"Wichtigstes Signal für die Zykluslänge", low:"wie erschlagen", high:"sofort klar" },
+  { key:"energy",  label:"Energie im Tagesverlauf", sub:"Erst am Abend ausfüllen, wenn du magst", low:"leer", high:"voll" }
+];
+const FACTORS = ["Koffein nach 16 Uhr","Alkohol","Sport","Bildschirm bis kurz vors Bett","Stress"];
+
+let S = { tab:"nacht", logs:[], plan:null, mode:"bett", target:"23:00", pick:null, draft:null, del:null };
+
+/* ---------- Zeit-Helfer ---------- */
+const pad = n => String(n).padStart(2,"0");
+const toMin = t => { const [h,m] = t.split(":").map(Number); return h*60 + m; };
+const toClock = m => { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m/60)) + ":" + pad(m%60); };
+const nowClock = () => { const d = new Date(); return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+const todayISO = (off=0) => { const d = new Date(); d.setDate(d.getDate()+off); return d.toISOString().slice(0,10); };
+const dur = (a,b) => (((toMin(b) - toMin(a)) % 1440) + 1440) % 1440;
+const hm = m => Math.floor(m/60) + " h " + pad(Math.round(m%60));
+const shortDate = iso => { const d = new Date(iso+"T12:00"); return pad(d.getDate())+"."+pad(d.getMonth()+1)+"."; };
+const median = a => { const s=[...a].sort((x,y)=>x-y); const n=s.length; return n? (n%2? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2) : 0; };
+const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+const clamp = (v,a,b) => Math.max(a, Math.min(b,v));
+
+/* ---------- Bewertung einer Nacht ---------- */
+function score(l){
+  const q = (l.quality-1)/4, a = (l.alert-1)/4;
+  const e = l.energy ? (l.energy-1)/4 : null;
+  const w = 1 - clamp(l.wakeups,0,4)/4;
+  return e === null
+    ? 0.44*q + 0.44*a + 0.12*w
+    : 0.34*q + 0.40*a + 0.16*e + 0.10*w;
+}
+function netSleep(l){
+  return dur(l.bed, l.up) - l.latency - Math.min(clamp(l.wakeups,0,4)*5, 20);
+}
+const usable = l => { const n = netSleep(l); return n >= 180 && n <= 660 && l.quality && l.alert; };
+const misalign = (net, L) => { const r = net/L; return clamp(2*Math.abs(r - Math.round(r)), 0, 1); };
+
+/* ---------- Kern: persönliche Zykluslänge schätzen ---------- */
+function learn(){
+  const nights = S.logs.filter(usable);
+  const n = nights.length;
+  const out = { cycle: DEF.cycle, latency: DEF.latency, n, conf: 0, best: null, spread: 0 };
+
+  const lats = nights.slice(-12).map(l => l.latency);
+  if (lats.length >= 3) out.latency = Math.round(median(lats));
+  if (n < 4) return out;
+
+  const sc = nights.map(score);
+  const m = avg(sc);
+  const dev = sc.map(v => v - m);
+  const lam = 0.03 * 6/(6+n);
+  let best = null, min = Infinity, max = -Infinity;
+
+  for (let L = 78; L <= 112; L += 0.5){
+    let e = 0;
+    for (let i=0;i<n;i++) e += dev[i] * misalign(netSleep(nights[i]), L);
+    e = e/n + lam * Math.pow((L-90)/12, 2);
+    if (e < min){ min = e; best = L; }
+    if (e > max) max = e;
+  }
+  out.cycle = best;
+  out.spread = max - min;
+  out.conf = clamp(n/12, 0, 1) * clamp(out.spread/0.05, 0, 1);
+
+  const g = {};
+  nights.forEach((l,i) => {
+    const k = Math.round(netSleep(l)/out.cycle);
+    (g[k] = g[k] || []).push(sc[i]);
+  });
+  const cand = Object.keys(g).filter(k => g[k].length >= 2).sort((a,b) => avg(g[b]) - avg(g[a]));
+  if (cand.length && n >= 5) out.best = Number(cand[0]);
+  return out;
+}
+
+function factorInsights(){
+  const nights = S.logs.filter(usable);
+  if (nights.length < 6) return [];
+  return FACTORS.map(f => {
+    const on  = nights.filter(l => (l.factors||[]).includes(f)).map(score);
+    const off = nights.filter(l => !(l.factors||[]).includes(f)).map(score);
+    if (on.length < 2 || off.length < 2) return null;
+    return { f, delta: (avg(on) - avg(off)) * 100, n: on.length };
+  }).filter(Boolean).sort((a,b) => Math.abs(b.delta) - Math.abs(a.delta));
+}
+
+/* ---------- Speicher ---------- */
+const Vault = {
+  async read(){
+    try {
+      if (window.storage){
+        const r = await window.storage.get(KEY);
+        if (r && r.value) return r.value;
+      }
+    } catch(e){ /* nicht verfügbar */ }
+    try { return localStorage.getItem(KEY); } catch(e){ return null; }
+  },
+  async write(text){
+    let ok = false;
+    try { if (window.storage){ await window.storage.set(KEY, text); ok = true; } } catch(e){}
+    try { localStorage.setItem(KEY, text); ok = true; } catch(e){}
+    return ok;
+  }
+};
+
+async function load(){
+  const raw = await Vault.read();
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    S.logs = d.logs || [];
+    S.plan = d.plan || null;
+    S.mode = d.mode || "bett";
+    S.target = d.target || "23:00";
+  } catch(e){ /* beschädigt, mit leerem Stand weiter */ }
+}
+
+async function save(){
+  const ok = await Vault.write(JSON.stringify({ logs:S.logs, plan:S.plan, mode:S.mode, target:S.target }));
+  if (!ok) toast("Speichern hat nicht geklappt");
+}
+function toast(msg){
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+  const el = document.createElement("div");
+  el.className = "toast"; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2400);
+}
+
+/* =========================================================
+   Zifferblatt — die Nacht als Ring, Wellen = Zyklen
+   ========================================================= */
+function dial(bed, up, L, lat, k){
+  const cx = 165, cy = 165, R = 122, amp = 16;
+  const start = -125, sweep = 250;
+  const total = lat + k*L;
+  const pt = (t, r) => {
+    const a = (start + (t/total)*sweep) * Math.PI/180;
+    return [cx + r*Math.sin(a), cy - r*Math.cos(a)];
+  };
+  const p0 = pt(0, R), p1 = pt(total, R);
+  const ring = "M"+p0[0].toFixed(1)+","+p0[1].toFixed(1)
+             + " A"+R+","+R+" 0 1 1 "+p1[0].toFixed(1)+","+p1[1].toFixed(1);
+
+  let doze = "", wave = "";
+  const N = 260;
+  for (let i=0; i<=N; i++){
+    const t = total*i/N;
+    let depth = 0;
+    if (t > lat){
+      const p = (t-lat)/L, c = Math.floor(p);
+      const a = Math.max(.34, 1 - .16*c);
+      depth = a * (1 - Math.cos(2*Math.PI*(p-c)))/2;
+    }
+    const q = pt(t, R - depth*amp);
+    const seg = q[0].toFixed(1)+","+q[1].toFixed(1);
+    if (t <= lat) doze += (doze ? " L" : "M") + seg;
+    else wave += (wave ? " L" : "M") + seg;
+  }
+  const join = pt(lat, R);
+  wave = "M"+join[0].toFixed(1)+","+join[1].toFixed(1)+" L"+wave.slice(1);
+
+  let ticks = "";
+  for (let c = 1; c <= k; c++){
+    const t = lat + c*L, hot = c === k;
+    const a = pt(t, R+5), b = pt(t, R + (hot ? 15 : 10));
+    ticks += '<line class="tick'+(hot?" hot":"")+'" x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)
+           + '" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+'"/>';
+    if (hot){
+      const d = pt(t, R);
+      ticks += '<circle class="halo" cx="'+d[0].toFixed(1)+'" cy="'+d[1].toFixed(1)+'" r="9"/>'
+             + '<circle class="knob" cx="'+d[0].toFixed(1)+'" cy="'+d[1].toFixed(1)+'" r="4"/>';
+    }
+  }
+
+  return '<div class="dial"><svg viewBox="0 0 330 330" role="img" aria-label="Nachtverlauf über '+k+' Schlafzyklen">'
+    + '<path class="ring" d="'+ring+'"/>'
+    + '<path class="doze" d="'+doze+'"/>'
+    + '<path class="wave wave-draw" d="'+wave+'"/>'
+    + ticks + '</svg>'
+    + '<div class="center"><div class="cap">Aufstehen</div>'
+    + '<div class="t big">'+up+'</div>'
+    + '<div class="sub">'+k+' Zyklen · '+hm(k*L)+' Schlaf</div></div>'
+    + '<div class="ends"><span>'+bed+'</span><span>'+up+'</span></div></div>';
+}
+
+/* =========================================================
+   Ansicht: Nacht
+   ========================================================= */
+function planData(){
+  const L = learn();
+  const lat = L.latency;
+  const list = [3,4,5,6].map(k => ({
+    k,
+    bed: S.mode === "bett" ? S.target : toClock(toMin(S.target) - (lat + k*L.cycle)),
+    up:  S.mode === "bett" ? toClock(toMin(S.target) + lat + k*L.cycle) : S.target,
+    net: k*L.cycle,
+    total: lat + k*L.cycle
+  }));
+  return { L, lat, list };
+}
+
+function viewNacht(){
+  const { L, lat, list } = planData();
+  const pick = S.pick || L.best || 5;
+  const sel = list.find(o => o.k === pick) || list[2];
+  const open = S.plan && !S.logs.some(l => l.date === todayISO());
+
+  let html = "";
+  if (open){
+    html += '<button class="banner" data-a="goform"><i></i>Nacht vom '+shortDate(S.plan.date)+' fehlt noch<span>Eintragen</span></button>';
+  }
+
+  html += '<div class="seg">'
+    + '<button data-a="mode" data-v="bett" class="'+(S.mode==="bett"?"on":"")+'">Ich gehe ins Bett</button>'
+    + '<button data-a="mode" data-v="auf" class="'+(S.mode==="auf"?"on":"")+'">Ich muss raus</button>'
+    + '</div>';
+
+  html += '<div class="field"><div style="flex:1;min-width:0">'
+    + '<span class="lab">'+(S.mode==="bett"?"Licht aus um":"Aufstehen um")+'</span>'
+    + '<input type="time" id="target" value="'+S.target+'" aria-label="Uhrzeit"></div>'
+    + '<button class="now" data-a="now">Jetzt</button></div>';
+
+  html += dial(sel.bed, sel.up, L.cycle, lat, pick);
+
+  html += '<div class="opts">' + list.map(o =>
+      '<button class="opt'+(o.k===pick?" on":"")+'" data-a="pick" data-v="'+o.k+'">'
+      + (L.best===o.k ? '<i class="best"></i>' : '')
+      + '<span class="t">'+(S.mode==="bett" ? o.up : o.bed)+'</span>'
+      + '<span class="d">'+o.k+' Zyklen · '+hm(o.net)+'</span></button>').join("")
+    + '</div>';
+
+  if (L.best) html += '<div class="legend"><i></i>deine bisher beste Zyklenzahl</div>';
+
+  html += '<div class="stats">'
+    + '<div><div class="k">Zyklus</div><div class="v">'+L.cycle.toFixed(0)+' min</div></div>'
+    + '<div><div class="k">Einschlafen</div><div class="v">'+lat+' min</div></div>'
+    + '<div><div class="k">Im Bett</div><div class="v">'+hm(sel.total)+'</div></div>'
+    + '</div>';
+
+  html += '<button class="wide" data-a="setplan">Nacht so planen</button>';
+
+  if (L.n < 4){
+    html += '<p class="empty" style="margin-top:22px">Bis vier protokollierte Nächte rechnet die App mit 90 Minuten. '
+      + 'Danach verschiebt sie die Zykluslänge dorthin, wo deine wachsten Morgen liegen.</p>';
+  }
+  return html;
+}
+
+/* =========================================================
+   Ansicht: Morgen
+   ========================================================= */
+function blankDraft(){
+  return {
+    date: todayISO(),
+    bed: S.plan ? S.plan.bed : "23:00",
+    up: nowClock(),
+    latency: DEF.latency,
+    wakeups: 0,
+    quality: 0, alert: 0, energy: 0,
+    factors: [], note: ""
+  };
+}
+
+function viewMorgen(){
+  if (!S.draft) S.draft = blankDraft();
+  const d = S.draft;
+  const net = dur(d.bed, d.up) - d.latency;
+
+  let html = '<p class="eyebrow">Wie war die Nacht?</p>';
+  html += '<div class="two">'
+    + '<div class="field"><div style="min-width:0;flex:1"><span class="lab">Licht aus</span>'
+    + '<input type="time" data-f="bed" value="'+d.bed+'" style="font-size:22px" aria-label="Licht aus"></div></div>'
+    + '<div class="field"><div style="min-width:0;flex:1"><span class="lab">Aufgestanden</span>'
+    + '<input type="time" data-f="up" value="'+d.up+'" style="font-size:22px" aria-label="Aufgestanden"></div></div>'
+    + '</div>';
+  html += '<p class="hint" id="sumline" style="margin-top:10px">Im Bett '+hm(dur(d.bed,d.up))+' · geschätzt geschlafen '+hm(Math.max(net,0))+'</p>';
+
+  html += '<p class="q">Wie lange bis zum Einschlafen?<em>'+d.latency+' Minuten</em></p><div class="scale">'
+    + [5,10,15,20,30,45].map(v => '<button data-a="lat" data-v="'+v+'" class="'+(d.latency===v?"on":"")+'">'+v+'</button>').join("")
+    + '</div><div class="ends2"><span>schnell weg</span><span>lange gewälzt</span></div>';
+
+  html += '<p class="q">Nachts aufgewacht<em>zählt nur, was du gemerkt hast</em></p><div class="scale">'
+    + [0,1,2,3,4].map(v => '<button data-a="wake" data-v="'+v+'" class="'+(d.wakeups===v?"on":"")+'">'+(v===4?"4+":v)+'</button>').join("")
+    + '</div><div class="ends2"><span>durchgeschlafen</span><span>oft wach</span></div>';
+
+  RATINGS.forEach(r => {
+    html += '<p class="q">'+r.label+'<em>'+r.sub+'</em></p><div class="scale">'
+      + [1,2,3,4,5].map(v => '<button data-a="rate" data-k="'+r.key+'" data-v="'+v+'" class="'+(d[r.key]===v?"on":"")+'">'+v+'</button>').join("")
+      + '</div><div class="ends2"><span>'+r.low+'</span><span>'+r.high+'</span></div>';
+  });
+
+  html += '<p class="q">Was war gestern?<em>optional, sortiert Störfaktoren heraus</em></p><div class="chips">'
+    + FACTORS.map(f => '<button class="chip'+(d.factors.includes(f)?" on":"")+'" data-a="fac" data-v="'+f+'">'+f+'</button>').join("")
+    + '</div>';
+
+  html += '<p class="q">Notiz<em>optional</em></p>'
+    + '<textarea data-f="note" placeholder="Traum, Raumtemperatur, was auch immer">'+(d.note||"")+'</textarea>';
+
+  html += '<div class="rule"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+    + '<span class="hint">Datum des Morgens</span>'
+    + '<input type="date" data-f="date" value="'+d.date+'"></div>';
+
+  html += '<button class="wide solid" data-a="savelog">Nacht speichern</button>';
+  return html;
+}
+
+/* =========================================================
+   Ansicht: Muster
+   ========================================================= */
+function viewMuster(){
+  const L = learn();
+  const nights = S.logs.filter(usable);
+  const conf = L.conf < .25 ? "tastend" : L.conf < .55 ? "wird belastbar" : L.conf < .8 ? "solide" : "stabil";
+
+  let html = '<p class="eyebrow">Deine Zykluslänge</p>'
+    + '<div class="headline"><span class="v big">'+L.cycle.toFixed(0)+'</span><span class="u">Minuten</span></div>'
+    + '<div class="meter"><i style="width:'+Math.round(clamp(L.conf,0.02,1)*100)+'%"></i></div>'
+    + '<p class="hint">Sicherheit '+conf+' · '+L.n+' '+(L.n===1?"Nacht":"Nächte")+' ausgewertet'
+    + (L.n<4 ? " · Standardwert bis vier Nächte" : "")+'</p>'
+    + '<div style="margin-top:18px">'
+    + '<div class="kv"><span>Einschlafdauer</span><b>'+L.latency+' min</b></div>'
+    + '<div class="kv"><span>Beste Zyklenzahl</span><b>'+(L.best ? L.best+" × "+L.cycle.toFixed(0)+" min" : "—")+'</b></div>'
+    + '<div class="kv"><span>Ideale Schlafdauer</span><b>'+(L.best ? hm(L.best*L.cycle) : hm(5*L.cycle))+'</b></div>'
+    + '<div class="kv"><span>Schnitt Schlafscore</span><b>'+(nights.length ? Math.round(avg(nights.map(score))*100) : "—")+'</b></div>'
+    + '</div>';
+
+  if (nights.length){
+    html += '<p class="eyebrow">Letzte Nächte</p><div class="bars">'
+      + S.logs.slice(-14).map(l => {
+          const ok = usable(l), s = ok ? score(l) : 0;
+          const cls = !ok ? "" : misalign(netSleep(l), L.cycle) < .28 ? "al" : "mis";
+          return '<i class="'+cls+'" style="height:'+Math.round(clamp(s,0.04,1)*100)+'%"></i>';
+        }).join("")
+      + '</div><p class="hint">Hell = Aufwachen lag auf einem Zyklusende, gedämpft = mitten im Zyklus geweckt. Höhe = Schlafscore.</p>'
+      + '<div style="margin-top:14px">'
+      + S.logs.slice().reverse().slice(0,12).map(l => {
+          const ok = usable(l);
+          return '<div class="night"><span class="dt">'+shortDate(l.date)+'</span>'
+            + '<span class="sc">'+(ok ? Math.round(score(l)*100) : "–")+'</span>'
+            + '<span class="meta">'+l.bed+"–"+l.up+' · '+(ok ? (netSleep(l)/L.cycle).toFixed(1) : "–")+' Z.</span>'
+            + '<button class="del'+(S.del===String(l.id)?" arm":"")+'" data-a="'+(S.del===String(l.id)?"del2":"del1")+'" data-v="'+l.id+'">'
+            + (S.del===String(l.id) ? "wirklich?" : "löschen")+'</button></div>';
+        }).join("") + '</div>';
+  } else {
+    html += '<p class="eyebrow">Letzte Nächte</p><p class="empty">Noch keine vollständige Nacht. Trag morgen früh die erste ein — '
+      + 'Schlafqualität und Wachheit reichen schon.</p>';
+  }
+
+  const fi = factorInsights();
+  if (fi.length){
+    html += '<p class="eyebrow">Störfaktoren</p>'
+      + fi.map(x => '<div class="kv"><span>'+x.f+' ('+x.n+'×)</span><b>'+(x.delta>0?"+":"")+x.delta.toFixed(0)+'</b></div>').join("")
+      + '<p class="hint" style="margin-top:12px">Differenz im Schlafscore gegenüber Nächten ohne diesen Faktor.</p>';
+  }
+
+  html += '<div style="margin-top:26px"><details><summary>So rechnet die App</summary>'
+    + '<p>Aus jeder Nacht wird die reine Schlafzeit gebildet: <code>Bettzeit − Einschlafdauer − Wachliegen</code>. '
+    + 'Jede Nacht bekommt einen Score aus Wachheit beim Aufstehen (40 %), Schlafqualität (34 %), Tagesenergie (16 %) und Durchschlafen (10 %).</p>'
+    + '<p>Dann wird die Zykluslänge <code>L</code> zwischen 78 und 112 Minuten in 0,5-Schritten durchsucht. Gesucht ist das <code>L</code>, '
+    + 'bei dem deine <b>guten</b> Nächte möglichst genau auf einem ganzzahligen Vielfachen von <code>L</code> enden und die schlechten mitten im Zyklus. '
+    + 'Ein Dämpfungsterm zieht die Schätzung anfangs Richtung 90 Minuten und verliert mit jeder Nacht an Gewicht.</p>'
+    + '<p>Die Einschlafdauer ist der Median der letzten zwölf Angaben. Die beste Zyklenzahl ist die Anzahl mit dem höchsten Durchschnittsscore.</p>'
+    + '</details></div>';
+
+  html += '<button class="wide" data-a="export">Daten sichern · '+S.logs.length+' Einträge</button>';
+  return html;
+}
+
+/* =========================================================
+   Rendern + Ereignisse
+   ========================================================= */
+function render(){
+  const open = S.plan && !S.logs.some(l => l.date === todayISO());
+  const L = learn();
+  document.getElementById("hstat").textContent = L.cycle.toFixed(0) + " min · " + L.n + (L.n===1 ? " Nacht" : " Nächte");
+  document.getElementById("tabs").innerHTML =
+    [["nacht","Nacht"],["morgen","Morgen"],["muster","Muster"]].map(([k,t]) =>
+      '<button class="'+(S.tab===k?"on":"")+'" data-a="tab" data-v="'+k+'">'
+      + '<span class="pip"></span>'+t
+      + (k==="morgen" && open ? '<span class="dot"></span>' : '')+'</button>').join("");
+  document.getElementById("view").innerHTML =
+    S.tab === "nacht" ? viewNacht() : S.tab === "morgen" ? viewMorgen() : viewMuster();
+  window.scrollTo({ top:0, behavior:"instant" });
+}
+function rerenderPlan(){
+  if (S.tab !== "nacht") return;
+  const focus = document.activeElement && document.activeElement.id;
+  document.getElementById("view").innerHTML = viewNacht();
+  if (focus){ const el = document.getElementById(focus); if (el) el.focus(); }
+}
+function updateSummary(){
+  const el = document.getElementById("sumline");
+  if (!el || !S.draft) return;
+  const d = S.draft, net = dur(d.bed, d.up) - d.latency;
+  el.textContent = "Im Bett " + hm(dur(d.bed,d.up)) + " · geschätzt geschlafen " + hm(Math.max(net,0));
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-a]");
+  if (!b) return;
+  const a = b.dataset.a, v = b.dataset.v;
+
+  if (a === "tab"){ S.tab = v; S.del = null; render(); }
+  else if (a === "mode"){ S.mode = v; S.target = v === "bett" ? nowClock() : "07:00"; save(); render(); }
+  else if (a === "now"){ S.target = nowClock(); save(); rerenderPlan(); }
+  else if (a === "pick"){ S.pick = Number(v); rerenderPlan(); }
+  else if (a === "goform"){ S.tab = "morgen"; render(); }
+  else if (a === "setplan"){
+    const p = planData();
+    const k = S.pick || p.L.best || 5;
+    const o = p.list.find(x => x.k === k);
+    S.plan = { date: todayISO(1), bed:o.bed, up:o.up, k, cycle:p.L.cycle, latency:p.lat };
+    save(); toast("Geplant · " + o.bed + " bis " + o.up);
+  }
+  else if (a === "lat"){ S.draft.latency = Number(v); render(); }
+  else if (a === "wake"){ S.draft.wakeups = Number(v); render(); }
+  else if (a === "rate"){ S.draft[b.dataset.k] = Number(v); render(); }
+  else if (a === "fac"){
+    const f = S.draft.factors, i = f.indexOf(v);
+    if (i < 0) f.push(v); else f.splice(i,1);
+    render();
+  }
+  else if (a === "savelog"){ saveLog(); }
+  else if (a === "del1"){ S.del = String(v); render(); }
+  else if (a === "del2"){
+    S.logs = S.logs.filter(l => String(l.id) !== String(v));
+    S.del = null; save(); render(); toast("Eintrag gelöscht");
+  }
+  else if (a === "export"){ exportData(); }
+});
+
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "target"){ if (!t.value) return; S.target = t.value; save(); rerenderPlan(); }
+  else if (t.dataset.f && S.draft){
+    S.draft[t.dataset.f] = t.value;
+    if (t.dataset.f === "bed" || t.dataset.f === "up") updateSummary();
+  }
+});
+
+function saveLog(){
+  const d = S.draft;
+  if (!d.quality || !d.alert){ toast("Schlafqualität und Wachheit fehlen"); return; }
+  if (dur(d.bed, d.up) < 60){ toast("Bettzeit prüfen — unter einer Stunde"); return; }
+  S.logs = S.logs.filter(l => l.date !== d.date);
+  S.logs.push({ ...d, id: Date.now(), factors: [...d.factors] });
+  S.logs.sort((a,b) => a.date.localeCompare(b.date));
+  S.plan = null; S.draft = null; S.pick = null;
+  save();
+  const L = learn();
+  S.tab = "muster";
+  render();
+  toast(L.n >= 4 ? "Gespeichert · Zyklus jetzt " + L.cycle.toFixed(0) + " min"
+                 : "Gespeichert · noch " + (4-L.n) + " Nächte bis zur eigenen Zykluslänge");
+}
+
+async function exportData(){
+  const text = JSON.stringify({ logs:S.logs, exported:new Date().toISOString() }, null, 2);
+  const name = "zyklus-daten-" + todayISO() + ".json";
+
+  try {
+    const file = new File([text], name, { type:"application/json" });
+    if (navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({ files:[file], title:"Zyklus-Daten" });
+      return;
+    }
+  } catch(e){ /* abgebrochen oder nicht unterstützt */ }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Daten in die Zwischenablage kopiert");
+    return;
+  } catch(e){}
+
+  const blob = new Blob([text], { type:"application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Datei erzeugt");
+}
+
+/* ---------- Start ---------- */
+(async function init(){
+  await load();
+  if (S.mode === "bett" && !S.plan) S.target = nowClock();
+  const open = S.plan && !S.logs.some(l => l.date === todayISO());
+  const h = new Date().getHours();
+  if (open && h >= 4 && h < 14) S.tab = "morgen";
+  render();
+})();
+</script>
+</body>
+</html>
