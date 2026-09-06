@@ -202,6 +202,36 @@ details b{color:var(--ink);font-weight:500}
 details code{font-family:var(--mono);color:var(--ink);font-size:12.5px}
 .empty{color:var(--faint);font-size:13.5px;line-height:1.7}
 
+/* ---------- Trend über Zeit ---------- */
+.trend-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px}
+.trend-delta{font-family:var(--mono);font-size:21px;font-weight:300;color:var(--ink)}
+
+/* ---------- Wochentag-Muster ---------- */
+.wk-compare{display:flex;gap:10px;margin-top:4px}
+.wk-col{flex:1;border:1px solid var(--hair2);border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:5px}
+.wk-h{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.wk-t{font-family:var(--mono);font-size:17px;font-weight:300;color:var(--ink)}
+.wk-d{font-size:11.5px;color:var(--dim);font-family:var(--mono)}
+
+/* ---------- Wochenrückblick ---------- */
+details.week{padding-top:14px}
+details.week summary{min-height:auto;padding-bottom:14px}
+.wk-row{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.wk-range{font-family:var(--mono);font-size:12px;color:var(--dim);width:92px;flex:none}
+.wk-dots{display:flex;gap:3px;flex:1;flex-wrap:wrap}
+.wk-dot{width:5px;height:5px;border-radius:50%;background:var(--ghost);display:block;flex:none}
+.wk-dot.al{background:var(--ink)}
+.wk-dot.mis{background:rgba(241,238,233,.28)}
+.wk-score{font-family:var(--mono);font-size:14px;color:var(--ink);flex:none;width:26px;text-align:right}
+.week-body .night:first-child{border-top:1px solid var(--hair)}
+
+/* ---------- Kurzbefehle ---------- */
+.sc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
+.sc-row span{font-size:13px;color:var(--ink)}
+.sc-copy{flex:none;border:1px solid var(--hair2);border-radius:100px;padding:7px 13px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.sc-copy:active{background:var(--surf)}
+.sc-url{font-size:11px;color:var(--faint);word-break:break-all;margin-top:4px}
+
 /* ---------- Navigation ---------- */
 nav{
   position:sticky;bottom:0;z-index:5;display:flex;
@@ -285,21 +315,15 @@ const usable = l => { const n = netSleep(l); return n >= 180 && n <= 660 && l.qu
 const misalign = (net, L) => { const r = net/L; return clamp(2*Math.abs(r - Math.round(r)), 0, 1); };
 
 /* ---------- Kern: persönliche Zykluslänge schätzen ---------- */
-function learn(){
-  const nights = S.logs.filter(usable);
+/* Sucht L zwischen 78 und 112 min, bei dem gute Nächte auf einem Zyklusende enden */
+function fitCycleLength(nights){
   const n = nights.length;
-  const out = { cycle: DEF.cycle, latency: DEF.latency, n, conf: 0, best: null, spread: 0 };
-
-  const lats = nights.slice(-12).map(l => l.latency);
-  if (lats.length >= 3) out.latency = Math.round(median(lats));
-  if (n < 4) return out;
-
+  if (n < 4) return { cycle: DEF.cycle, conf: 0 };
   const sc = nights.map(score);
   const m = avg(sc);
   const dev = sc.map(v => v - m);
   const lam = 0.03 * 6/(6+n);
-  let best = null, min = Infinity, max = -Infinity;
-
+  let best = 90, min = Infinity, max = -Infinity;
   for (let L = 78; L <= 112; L += 0.5){
     let e = 0;
     for (let i=0;i<n;i++) e += dev[i] * misalign(netSleep(nights[i]), L);
@@ -307,18 +331,100 @@ function learn(){
     if (e < min){ min = e; best = L; }
     if (e > max) max = e;
   }
-  out.cycle = best;
-  out.spread = max - min;
-  out.conf = clamp(n/12, 0, 1) * clamp(out.spread/0.05, 0, 1);
+  const spread = max - min;
+  return { cycle: best, conf: clamp(n/12, 0, 1) * clamp(spread/0.05, 0, 1) };
+}
+
+function learn(){
+  const nights = S.logs.filter(usable);
+  const n = nights.length;
+  const out = { cycle: DEF.cycle, latency: DEF.latency, n, conf: 0, best: null };
+
+  const lats = nights.slice(-12).map(l => l.latency);
+  if (lats.length >= 3) out.latency = Math.round(median(lats));
+  if (n < 4) return out;
+
+  const fit = fitCycleLength(nights);
+  out.cycle = fit.cycle;
+  out.conf = fit.conf;
 
   const g = {};
-  nights.forEach((l,i) => {
+  nights.forEach(l => {
     const k = Math.round(netSleep(l)/out.cycle);
-    (g[k] = g[k] || []).push(sc[i]);
+    (g[k] = g[k] || []).push(score(l));
   });
   const cand = Object.keys(g).filter(k => g[k].length >= 2).sort((a,b) => avg(g[b]) - avg(g[a]));
   if (cand.length && n >= 5) out.best = Number(cand[0]);
   return out;
+}
+
+/* Wie sich die gelernte Zykluslänge über die Zeit entwickelt hat:
+   gleitendes Fenster der letzten bis zu 10 Nächte, an mehreren Zeitpunkten ausgewertet */
+function trendSeries(){
+  const nights = S.logs.filter(usable);
+  const n = nights.length;
+  if (n < 8) return null;
+  const win = 10;
+  const step = Math.max(1, Math.round(n/7));
+  const points = [];
+  for (let i = 3; i < n; i += step){
+    const windowNights = nights.slice(Math.max(0, i-win+1), i+1);
+    if (windowNights.length < 4) continue;
+    points.push({ date: nights[i].date, cycle: fitCycleLength(windowNights).cycle });
+  }
+  const lastWindow = nights.slice(Math.max(0, n-win));
+  if (lastWindow.length >= 4){
+    const last = { date: nights[n-1].date, cycle: fitCycleLength(lastWindow).cycle };
+    if (!points.length || points[points.length-1].date !== last.date) points.push(last);
+  }
+  return points.length >= 2 ? points : null;
+}
+
+/* Wochentags- vs. Wochenend-Rhythmus, mit zirkulärem Mittel für Uhrzeiten */
+function circularMean(mins){
+  let sx = 0, sy = 0;
+  mins.forEach(m => { const a = m/1440*2*Math.PI; sx += Math.cos(a); sy += Math.sin(a); });
+  let a = Math.atan2(sy, sx);
+  if (a < 0) a += 2*Math.PI;
+  return Math.round(a/(2*Math.PI)*1440);
+}
+function circularDiff(a, b){ return ((b-a+720)%1440+1440)%1440 - 720; }
+
+function weekdaySummary(){
+  const nights = S.logs.filter(usable);
+  const wd = [], we = [];
+  nights.forEach(l => {
+    const day = new Date(l.date+"T12:00").getDay();
+    (day === 0 || day === 6 ? we : wd).push(l);
+  });
+  if (wd.length < 3 || we.length < 3) return null;
+  return {
+    wd, we,
+    bedWd: circularMean(wd.map(l => toMin(l.bed))), bedWe: circularMean(we.map(l => toMin(l.bed))),
+    upWd:  circularMean(wd.map(l => toMin(l.up))),  upWe:  circularMean(we.map(l => toMin(l.up))),
+    durWd: avg(wd.map(netSleep)), durWe: avg(we.map(netSleep)),
+    scoreWd: avg(wd.map(score)), scoreWe: avg(we.map(score))
+  };
+}
+
+/* Nächte nach Kalenderwoche (Montag–Sonntag) gruppiert, neueste zuerst */
+function mondayOf(dateStr){
+  const d = new Date(dateStr+"T12:00");
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1-day));
+  return d.toISOString().slice(0,10);
+}
+function weeklyGroups(){
+  const map = {};
+  S.logs.forEach(l => { const k = mondayOf(l.date); (map[k] = map[k] || []).push(l); });
+  return Object.keys(map).sort().reverse().map(key => {
+    const mon = new Date(key+"T12:00");
+    const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+    return {
+      key, label: shortDate(key) + '–' + shortDate(sun.toISOString().slice(0,10)),
+      nights: map[key].slice().sort((a,b) => a.date.localeCompare(b.date))
+    };
+  });
 }
 
 function factorInsights(){
@@ -492,6 +598,7 @@ function viewNacht(){
     html += '<p class="empty" style="margin-top:22px">Bis vier protokollierte Nächte rechnet die App mit 90 Minuten. '
       + 'Danach verschiebt sie die Zykluslänge dorthin, wo deine wachsten Morgen liegen.</p>';
   }
+  html += shortcutsCard();
   return html;
 }
 
@@ -554,6 +661,112 @@ function viewMorgen(){
 }
 
 /* =========================================================
+   Muster: Trend, Wochentag-Vergleich, Wochenrückblick
+   ========================================================= */
+function trendSvg(points){
+  const w = 300, h = 72, padX = 4, padY = 12;
+  const vals = points.map(p => p.cycle);
+  const lo = Math.min(...vals) - 1.5, hi = Math.max(...vals) + 1.5;
+  const x = i => padX + i*(w-2*padX)/Math.max(1, points.length-1);
+  const y = v => padY + (1-(v-lo)/(hi-lo||1))*(h-2*padY);
+  const d = points.map((p,i) => (i?'L':'M') + x(i).toFixed(1) + ',' + y(p.cycle).toFixed(1)).join(' ');
+  const dots = points.map((p,i) =>
+    '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.cycle).toFixed(1)+'" r="'+(i===points.length-1?3.2:2.2)+'" fill="'
+    + (i===points.length-1?'#E3C08A':'rgba(241,238,233,.55)')+'"/>').join('');
+  return '<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;display:block;margin-top:6px">'
+    + '<path d="'+d+'" fill="none" stroke="rgba(241,238,233,.55)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'
+    + dots + '</svg>';
+}
+
+function trendCard(){
+  const pts = trendSeries();
+  const nUsable = S.logs.filter(usable).length;
+  if (!pts){
+    if (nUsable < 4) return '';
+    return '<p class="eyebrow">Trend über Zeit</p>'
+      + '<p class="empty">Für einen Trend braucht es mindestens acht ausgewertete Nächte. Bisher sind es '+nUsable+'.</p>';
+  }
+  const third = Math.max(1, Math.ceil(pts.length/3));
+  const early = avg(pts.slice(0, third).map(p => p.cycle));
+  const recent = avg(pts.slice(-third).map(p => p.cycle));
+  const delta = Math.round(recent - early);
+  const stable = Math.abs(delta) < 2;
+  const deltaText = stable ? '±0 min' : (delta>0?'+':'−') + Math.abs(delta) + ' min';
+  const dirText = stable ? 'stabil geblieben' : (delta>0 ? 'länger geworden' : 'kürzer geworden');
+  return '<p class="eyebrow">Trend über Zeit</p>'
+    + '<div class="trend-head"><span class="trend-delta">'+deltaText+'</span>'
+    + '<span class="hint">seit '+shortDate(pts[0].date)+'</span></div>'
+    + trendSvg(pts)
+    + '<p class="hint" style="margin-top:2px">Deine Zykluslänge ist über die erfassten Nächte '+dirText+'.</p>';
+}
+
+function weekdayCard(){
+  const sum = weekdaySummary();
+  if (!sum) return '';
+  const bedDiff = circularDiff(sum.bedWd, sum.bedWe);
+  const durDiff = sum.durWe - sum.durWd;
+  let insight;
+  if (Math.abs(bedDiff) >= 15 || Math.abs(durDiff) >= 15){
+    const parts = [];
+    if (Math.abs(bedDiff) >= 15) parts.push('gehst du im Schnitt '+Math.abs(Math.round(bedDiff))+' min '+(bedDiff>0?'später':'früher')+' ins Bett');
+    if (Math.abs(durDiff) >= 15) parts.push('schläfst du '+Math.abs(Math.round(durDiff))+' min '+(durDiff>0?'länger':'kürzer'));
+    insight = 'Am Wochenende ' + parts.join(' und ') + '.';
+  } else {
+    insight = 'Dein Rhythmus unterscheidet sich kaum zwischen Wochentagen und Wochenende.';
+  }
+  return '<p class="eyebrow">Wochentag-Muster</p><div class="wk-compare">'
+    + '<div class="wk-col"><span class="wk-h">Wochentags</span>'
+    + '<span class="wk-t">'+toClock(sum.bedWd)+'–'+toClock(sum.upWd)+'</span>'
+    + '<span class="wk-d">'+hm(sum.durWd)+' · Score '+Math.round(sum.scoreWd*100)+'</span></div>'
+    + '<div class="wk-col"><span class="wk-h">Wochenende</span>'
+    + '<span class="wk-t">'+toClock(sum.bedWe)+'–'+toClock(sum.upWe)+'</span>'
+    + '<span class="wk-d">'+hm(sum.durWe)+' · Score '+Math.round(sum.scoreWe*100)+'</span></div>'
+    + '</div><p class="hint" style="margin-top:10px">'+insight+'</p>';
+}
+
+function nightRowHtml(l, L){
+  const ok = usable(l);
+  return '<div class="night"><span class="dt">'+shortDate(l.date)+'</span>'
+    + '<span class="sc">'+(ok ? Math.round(score(l)*100) : "–")+'</span>'
+    + '<span class="meta">'+l.bed+"–"+l.up+' · '+(ok ? (netSleep(l)/L.cycle).toFixed(1) : "–")+' Z.</span>'
+    + '<button class="del'+(S.del===String(l.id)?" arm":"")+'" data-a="'+(S.del===String(l.id)?"del2":"del1")+'" data-v="'+l.id+'">'
+    + (S.del===String(l.id) ? "wirklich?" : "löschen")+'</button></div>';
+}
+
+function weekCardHtml(week, L){
+  const usableNights = week.nights.filter(usable);
+  const avgScore = usableNights.length ? Math.round(avg(usableNights.map(score))*100) : null;
+  const dots = week.nights.map(l => {
+    if (!usable(l)) return '<i class="wk-dot"></i>';
+    return '<i class="wk-dot '+(misalign(netSleep(l), L.cycle) < .28 ? 'al' : 'mis')+'"></i>';
+  }).join('');
+  const rows = week.nights.slice().reverse().map(l => nightRowHtml(l, L)).join('');
+  return '<details class="week"><summary><span class="wk-row">'
+    + '<span class="wk-range">'+week.label+'</span>'
+    + '<span class="wk-dots">'+dots+'</span>'
+    + '<span class="wk-score">'+(avgScore!==null ? avgScore : '–')+'</span></span></summary>'
+    + '<div class="week-body">'+rows+'</div></details>';
+}
+
+/* =========================================================
+   Kurzbefehle: "Hey Siri" trägt Uhrzeit automatisch ein
+   ========================================================= */
+function shortcutsCard(){
+  const base = location.origin + location.pathname;
+  return '<div style="margin-top:26px"><details><summary>Kurzbefehle einrichten</summary>'
+    + '<p>Mit der Kurzbefehle-App trägt Siri die Uhrzeit für dich ein, ohne dass du die App öffnest.</p>'
+    + shortcutRow('„Ich geh ins Bett"', base + '?go=bed')
+    + shortcutRow('„Ich bin aufgestanden"', base + '?go=up')
+    + '<p style="margin-top:16px">In der Kurzbefehle-App: Neuer Kurzbefehl → Aktion <code>URL öffnen</code> mit einer der Adressen oben → Aktion <code>Safari-Webseite öffnen</code> hinzufügen → dem Kurzbefehl einen Namen geben, den du danach zu Siri sagst.</p>'
+    + '</details></div>';
+}
+function shortcutRow(label, url){
+  return '<div class="sc-row"><span>'+label+'</span>'
+    + '<button class="sc-copy" data-a="copyurl" data-v="'+url+'">Kopieren</button></div>'
+    + '<p class="sc-url mono">'+url+'</p>';
+}
+
+/* =========================================================
    Ansicht: Muster
    ========================================================= */
 function viewMuster(){
@@ -580,19 +793,20 @@ function viewMuster(){
           const cls = !ok ? "" : misalign(netSleep(l), L.cycle) < .28 ? "al" : "mis";
           return '<i class="'+cls+'" style="height:'+Math.round(clamp(s,0.04,1)*100)+'%"></i>';
         }).join("")
-      + '</div><p class="hint">Hell = Aufwachen lag auf einem Zyklusende, gedämpft = mitten im Zyklus geweckt. Höhe = Schlafscore.</p>'
-      + '<div style="margin-top:14px">'
-      + S.logs.slice().reverse().slice(0,12).map(l => {
-          const ok = usable(l);
-          return '<div class="night"><span class="dt">'+shortDate(l.date)+'</span>'
-            + '<span class="sc">'+(ok ? Math.round(score(l)*100) : "–")+'</span>'
-            + '<span class="meta">'+l.bed+"–"+l.up+' · '+(ok ? (netSleep(l)/L.cycle).toFixed(1) : "–")+' Z.</span>'
-            + '<button class="del'+(S.del===String(l.id)?" arm":"")+'" data-a="'+(S.del===String(l.id)?"del2":"del1")+'" data-v="'+l.id+'">'
-            + (S.del===String(l.id) ? "wirklich?" : "löschen")+'</button></div>';
-        }).join("") + '</div>';
+      + '</div><p class="hint">Hell = Aufwachen lag auf einem Zyklusende, gedämpft = mitten im Zyklus geweckt. Höhe = Schlafscore.</p>';
   } else {
     html += '<p class="eyebrow">Letzte Nächte</p><p class="empty">Noch keine vollständige Nacht. Trag morgen früh die erste ein — '
       + 'Schlafqualität und Wachheit reichen schon.</p>';
+  }
+
+  const trend = trendCard();
+  if (trend) html += '<div style="margin-top:26px">' + trend + '</div>';
+  const weekday = weekdayCard();
+  if (weekday) html += '<div style="margin-top:26px">' + weekday + '</div>';
+
+  if (S.logs.length){
+    html += '<p class="eyebrow" style="margin-top:26px">Wochenrückblick</p>'
+      + weeklyGroups().slice(0, 8).map(w => weekCardHtml(w, L)).join('');
   }
 
   const fi = factorInsights();
@@ -676,6 +890,9 @@ document.addEventListener("click", e => {
     S.del = null; save(); render(); toast("Eintrag gelöscht");
   }
   else if (a === "export"){ exportData(); }
+  else if (a === "copyurl"){
+    navigator.clipboard.writeText(v).then(() => toast("Adresse kopiert")).catch(() => toast("Kopieren nicht möglich — Adresse von Hand markieren"));
+  }
 });
 
 document.addEventListener("input", e => {
@@ -730,14 +947,44 @@ async function exportData(){
   toast("Datei erzeugt");
 }
 
+/* Kommt der Aufruf von einem Kurzbefehl (?go=bed / ?go=up), Zeit automatisch setzen */
+function applyShortcut(){
+  const go = new URLSearchParams(location.search).get("go");
+  if (!go) return null;
+  history.replaceState(null, "", location.pathname);
+
+  if (go === "bed"){
+    S.mode = "bett";
+    S.target = nowClock();
+    const p = planData();
+    const k = S.pick || p.L.best || 5;
+    const o = p.list.find(x => x.k === k);
+    S.plan = { date: todayISO(1), bed:o.bed, up:o.up, k, cycle:p.L.cycle, latency:p.lat };
+    save();
+    S.tab = "nacht";
+    return "Über Kurzbefehl geplant · " + o.bed + " bis " + o.up;
+  }
+  if (go === "up"){
+    S.draft = blankDraft();
+    S.draft.up = nowClock();
+    S.tab = "morgen";
+    return "Aufstehzeit übernommen — Rest bitte kurz ausfüllen";
+  }
+  return null;
+}
+
 /* ---------- Start ---------- */
 (async function init(){
   await load();
-  if (S.mode === "bett" && !S.plan) S.target = nowClock();
-  const open = S.plan && !S.logs.some(l => l.date === todayISO());
-  const h = new Date().getHours();
-  if (open && h >= 4 && h < 14) S.tab = "morgen";
+  const msg = applyShortcut();
+  if (!msg){
+    if (S.mode === "bett" && !S.plan) S.target = nowClock();
+    const open = S.plan && !S.logs.some(l => l.date === todayISO());
+    const h = new Date().getHours();
+    if (open && h >= 4 && h < 14) S.tab = "morgen";
+  }
   render();
+  if (msg) toast(msg);
 })();
 </script>
 </body>
